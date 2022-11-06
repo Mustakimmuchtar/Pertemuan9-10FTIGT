@@ -2,6 +2,7 @@ package com.chirikualii.materidb.data.repository
 
 import android.util.Log
 import com.chirikualii.materidb.data.local.MovieDbImpl
+import com.chirikualii.materidb.data.local.dao.MovieDao
 import com.chirikualii.materidb.data.local.entity.MovieEntity
 import com.chirikualii.materidb.data.model.Movie
 import com.chirikualii.materidb.data.model.MovieType
@@ -18,26 +19,37 @@ class MovieRepoImpl(
 
            if(response.isSuccessful){
                val listMovie = response.body()
-               val listData = listMovie?.results?.map {
-                   Movie(
+
+               val lisMovieEntity = listMovie?.results?.map {
+                   MovieEntity(
+                       movieId = it.id.toString(),
                        title = it.title,
                        releaseDate = it.releaseDate,
                        imagePoster = it.posterPath,
                        overview = it.overview,
-                       backdrop = it.backdropPath
+                       backdrop = it.backdropPath,
+                       typeMovie = MovieType.popular
                    )
+
                }
+
+               //insert to db
+               lisMovieEntity?.forEach{
+                   movieDbImpl.getDatabase().movieDao().insertMovie(it)
+               }
+
                Log.d(MovieRepoImpl::class.simpleName,
-                   "getPopularMovie : ${Gson().toJsonTree(listData)}")
-               return listData ?: emptyList()
+                   "getNowPlayingMovie : ${Gson().toJsonTree(listMovie)}")
+               return getPopularMovieLocal()
+
            }else{
                Log.e(MovieRepoImpl::class.simpleName,
                    "getPopularMovie error code: ${response.code()}", )
-               return emptyList()
+               return getPopularMovieLocal()
            }
        }catch (e:Exception){
            Log.e(MovieRepoImpl::class.simpleName, "getPopularMovie error :${e.message} ", )
-           return emptyList()
+           return getPopularMovieLocal()
        }
     }
 
@@ -47,15 +59,7 @@ class MovieRepoImpl(
 
             if(response.isSuccessful){
                 val listMovie = response.body()
-                val listData = listMovie?.results?.map {
-                    Movie(
-                        title = it.title,
-                        releaseDate = it.releaseDate,
-                        imagePoster = it.posterPath,
-                        overview = it.overview,
-                        backdrop = it.backdropPath
-                    )
-                }
+
 
                 val lisMovieEntity = listMovie?.results?.map {
                     MovieEntity(
@@ -65,7 +69,7 @@ class MovieRepoImpl(
                         imagePoster = it.posterPath,
                         overview = it.overview,
                         backdrop = it.backdropPath,
-                        typeMovie = MovieType.popular
+                        typeMovie = MovieType.nowPlaying
                     )
 
                 }
@@ -76,16 +80,58 @@ class MovieRepoImpl(
                 }
 
                 Log.d(MovieRepoImpl::class.simpleName,
-                    "getNowPlayingMovie : ${Gson().toJsonTree(listData)}")
-                return listData ?: emptyList()
+                    "getNowPlayingMovie : ${Gson().toJsonTree(listMovie)}")
+                return getNowPlayingMovieLocal() ?: emptyList()
             }else{
                 Log.e(MovieRepoImpl::class.simpleName,
                     "getNowPlayingMovie error code: ${response.code()}", )
-                return emptyList()
+                return getNowPlayingMovieLocal()
             }
         }catch (e:Exception){
             Log.e(MovieRepoImpl::class.simpleName, "getNowPlayingMovie error :${e.message} ", )
-            return emptyList()
+            return getNowPlayingMovieLocal()
+        }
+    }
+
+    override suspend fun getPopularMovieLocal(): List<Movie> {
+        var listData = listOf<Movie>()
+        try {
+            listData = movieDbImpl.getDatabase().movieDao().getListMoviePopular(
+                MovieType.popular
+            ).map {
+                Movie(
+                    title = it.title,
+                    releaseDate = it.releaseDate,
+                    imagePoster = it.imagePoster,
+                    backdrop = it.backdrop,
+                    overview = it.overview,
+                )
+            }
+            return listData
+        }catch (e:Exception){
+            Log.e(movieDbImpl::class.simpleName, "getPopularMovieLocal: ${e.message}", )
+            return listData
+        }
+    }
+
+    override suspend fun getNowPlayingMovieLocal(): List<Movie> {
+        var listData = listOf<Movie>()
+        try {
+            listData = movieDbImpl.getDatabase().movieDao().getListMovieNowPlaying(
+                MovieType.nowPlaying
+            ).map {
+                Movie(
+                    title = it.title,
+                    releaseDate = it.releaseDate,
+                    imagePoster = it.imagePoster,
+                    backdrop = it.backdrop,
+                    overview = it.overview,
+                )
+            }
+            return listData
+        }catch (e:Exception){
+            Log.e(movieDbImpl::class.simpleName, "getPopularMovieLocal: ${e.message}", )
+            return listData
         }
     }
 }
